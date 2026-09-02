@@ -79,10 +79,17 @@ def create_service_record(
     return service
 
 
-@router.get("", response_model=list[ServiceRecordResponse])
+@router.get("")
 def list_service_records(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    search: str | None = None,
+    vehicle_id: int | None = None,
+    service_status: str | None = None,
+    technician_id: int | None = None,
+    sort_by: str = "updated_at",
+    page: int = 1,
+    page_size: int = 10,
 ):
     query = db.query(ServiceRecord)
 
@@ -94,7 +101,62 @@ def list_service_records(
             ServiceTechnician.technician_id == current_user.id
         )
 
-    return query.order_by(ServiceRecord.id.desc()).all()
+    if search:
+        query = query.filter(
+            ServiceRecord.description.ilike(f"%{search}%")
+        )
+
+    if vehicle_id is not None:
+        query = query.filter(
+            ServiceRecord.vehicle_id == vehicle_id
+        )
+
+    if service_status:
+        query = query.filter(
+            ServiceRecord.status == service_status.upper()
+        )
+
+    if technician_id is not None:
+        if current_user.role == "TECHNICIAN":
+            query = query.filter(
+                ServiceTechnician.technician_id == technician_id
+            )
+        else:
+            query = query.join(
+                ServiceTechnician,
+                ServiceTechnician.service_id == ServiceRecord.id,
+            ).filter(
+                ServiceTechnician.technician_id == technician_id
+            )
+
+    if sort_by == "scheduled_date":
+        query = query.order_by(ServiceRecord.scheduled_date.asc())
+    elif sort_by == "status":
+        query = query.order_by(ServiceRecord.status.asc())
+    else:
+        query = query.order_by(ServiceRecord.updated_at.desc())
+
+    total = query.count()
+
+    if page < 1:
+        page = 1
+
+    if page_size < 1:
+        page_size = 10
+
+    services = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return {
+        "items": services,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.post(
@@ -534,3 +596,46 @@ def get_service_timeline(
         }
         for event in events
     ]
+
+@router.patch(
+    "/{service_id}",
+    response_model=ServiceRecordResponse,
+)
+def update_service_description(
+    service_id: int,
+    description: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = db.query(ServiceRecord).filter(
+        ServiceRecord.id == service_id
+    ).first()
+
+    if not service:
+        raise HTTPException(status_code=404, detail="Service record not found")
+
+    # Managers can edit; technicians can edit only their assigned records.
+    if current_user.role == "TECHNICIAN":
+        assignment = (
+            db.query(ServiceTechnician)
+            .filter(
+                ServiceTechnician.service_id == service_id,
+                ServiceTechnician.technician_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(
+                status_code=403,
+                detail="You can update only service records assigned to you",
+            )
+
+    elif current_user.role != "MANAGER":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    service.description = description
+    db.commit()
+    db.refresh(service)
+
+    return service
