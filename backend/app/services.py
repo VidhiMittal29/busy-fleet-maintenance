@@ -411,3 +411,126 @@ def assign_technician(
     db.refresh(service)
 
     return service
+
+@router.delete(
+    "/{service_id}/technician/{technician_id}",
+    response_model=ServiceRecordResponse,
+)
+def unassign_technician(
+    service_id: int,
+    technician_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    service = (
+        db.query(ServiceRecord)
+        .filter(ServiceRecord.id == service_id)
+        .first()
+    )
+
+    if not service:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Service record not found",
+        )
+
+    assignment = (
+        db.query(ServiceTechnician)
+        .filter(
+            ServiceTechnician.service_id == service_id,
+            ServiceTechnician.technician_id == technician_id,
+        )
+        .first()
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Technician is not assigned to this service",
+        )
+
+    technician = (
+        db.query(User)
+        .filter(User.id == technician_id)
+        .first()
+    )
+
+    db.delete(assignment)
+
+    db.add(
+        ServiceEvent(
+            service_id=service.id,
+            event_type="TECHNICIAN_UNASSIGNED",
+            old_status=service.status,
+            new_status=service.status,
+            note=(
+                f"Technician {technician.email if technician else technician_id} "
+                "unassigned"
+            ),
+            created_by=current_user.id,
+        )
+    )
+
+    service.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(service)
+
+    return service
+
+@router.get(
+    "/{service_id}/timeline",
+)
+def get_service_timeline(
+    service_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = (
+        db.query(ServiceRecord)
+        .filter(ServiceRecord.id == service_id)
+        .first()
+    )
+
+    if not service:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Service record not found",
+        )
+
+    # Technicians can only view the timeline of assigned services.
+    if current_user.role == "TECHNICIAN":
+        assignment = (
+            db.query(ServiceTechnician)
+            .filter(
+                ServiceTechnician.service_id == service_id,
+                ServiceTechnician.technician_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not assigned to this service record",
+            )
+
+    events = (
+        db.query(ServiceEvent)
+        .filter(ServiceEvent.service_id == service_id)
+        .order_by(ServiceEvent.created_at.asc(), ServiceEvent.id.asc())
+        .all()
+    )
+
+    return [
+        {
+            "id": event.id,
+            "event_type": event.event_type,
+            "old_status": event.old_status,
+            "new_status": event.new_status,
+            "note": event.note,
+            "created_by": event.created_by,
+            "created_at": event.created_at,
+        }
+        for event in events
+    ]
