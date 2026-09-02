@@ -32,6 +32,7 @@ class Vehicle(Base):
     last_service_odometer: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )
+    service_due_since: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -134,6 +135,28 @@ class AuditEvent(Base):
     entity_id: Mapped[int] = mapped_column(nullable=False)
     details: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+class AlertDismissal(Base):
+    __tablename__ = "alert_dismissals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vehicle_id: Mapped[int] = mapped_column(
+        ForeignKey("vehicles.id"),
+        nullable=False,
+    )
+    service_due_since: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    dismissed_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+    dismissed_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         nullable=False,

@@ -46,6 +46,7 @@ class VehicleResponse(BaseModel):
     service_mileage_interval: int
     last_service_date: date | None
     last_service_odometer: int | None
+    service_due_since: date | None
     is_archived: bool
 
     model_config = {
@@ -90,3 +91,6 @@ class TechnicianAssignment(BaseModel):
 class ServiceBooking(BaseModel):
     scheduled_date: date
     technician_ids: list[int]
+
+class ServiceNote(BaseModel):
+    note: str

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -14,18 +14,147 @@ from app.models import (
 )
 from app.schemas import (
     ServiceBooking,
+    ServiceNote,
     ServiceRecordCreate,
     ServiceRecordResponse,
     ServiceStatusUpdate,
     TechnicianAssignment,
 )
 
-
 router = APIRouter(
     prefix="/services",
     tags=["Service Records"],
 )
 
+OVERDUE_GRACE_PERIOD_DAYS = 7
+
+
+def vehicle_is_due(vehicle: Vehicle) -> bool:
+    today = date.today()
+
+    # Date-based due check
+    if vehicle.last_service_date is None:
+        date_due = True
+    else:
+        date_due = (
+            today >= vehicle.last_service_date
+            + timedelta(days=vehicle.service_date_interval_days)
+        )
+
+    # Mileage-based due check
+    if vehicle.last_service_odometer is None:
+        mileage_due = True
+    else:
+        mileage_due = (
+            vehicle.current_odometer
+            >= vehicle.last_service_odometer
+            + vehicle.service_mileage_interval
+        )
+
+    return date_due or mileage_due
+
+def sync_due_service_records(
+    db: Session,
+    current_user: User,
+) -> None:
+    vehicles = (
+        db.query(Vehicle)
+        .filter(Vehicle.is_archived == False)
+        .all()
+    )
+
+    for vehicle in vehicles:
+        if not vehicle_is_due(vehicle):
+            continue
+
+        existing_due = (
+            db.query(ServiceRecord)
+            .filter(
+                ServiceRecord.vehicle_id == vehicle.id,
+                ServiceRecord.status.in_(["DUE", "BOOKED", "IN_SERVICE"]),
+            )
+            .first()
+        )
+
+        if existing_due:
+            if vehicle.service_due_since is None:
+                vehicle.service_due_since = date.today()
+            continue
+
+        vehicle.service_due_since = date.today()
+
+        service = ServiceRecord(
+            vehicle_id=vehicle.id,
+            description="Scheduled maintenance",
+            status="DUE",
+            scheduled_date=None,
+        )
+
+        db.add(service)
+        db.flush()
+
+        db.add(
+            ServiceEvent(
+                service_id=service.id,
+                event_type="CREATED",
+                old_status=None,
+                new_status="DUE",
+                note="Service became due because a maintenance interval was reached",
+                created_by=current_user.id,
+            )
+        )
+
+    db.commit()
+
+def vehicle_overdue(vehicle: Vehicle) -> bool:
+    if vehicle.service_due_since is None:
+        return False
+
+    return date.today() >= (
+        vehicle.service_due_since
+        + timedelta(days=OVERDUE_GRACE_PERIOD_DAYS)
+    )
+
+@router.get("/due")
+def get_due_services(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    vehicles = (
+        db.query(Vehicle)
+        .filter(Vehicle.is_archived == False)
+        .all()
+    )
+
+    result = []
+
+    for vehicle in vehicles:
+        due = vehicle_is_due(vehicle)
+
+        if not due:
+            continue
+
+        if vehicle.service_due_since is None:
+            vehicle.service_due_since = date.today()
+
+        overdue = vehicle_overdue(vehicle)
+
+        result.append(
+            {
+                "vehicle_id": vehicle.id,
+                "registration_number": vehicle.registration_number,
+                "status": "OVERDUE" if overdue else "DUE",
+                "service_due_since": vehicle.service_due_since,
+                "current_odometer": vehicle.current_odometer,
+            }
+        )
+
+    db.commit()
+
+    return {
+        "total": len(result),
+        "items": result,
+    }
 
 @router.post(
     "",
@@ -92,6 +221,7 @@ def list_service_records(
     page_size: int = 10,
 ):
     query = db.query(ServiceRecord)
+    sync_due_service_records(db, current_user)
 
     if current_user.role == "TECHNICIAN":
         query = query.join(
@@ -359,6 +489,7 @@ def update_service_status(
 
         vehicle.last_service_date = datetime.utcnow().date()
         vehicle.last_service_odometer = vehicle.current_odometer
+        vehicle.service_due_since = None
 
     service.status = new_status
     service.updated_at = datetime.utcnow()
@@ -374,27 +505,6 @@ def update_service_status(
         )
     )
 
-    if new_status == "COMPLETED":
-        next_service = ServiceRecord(
-            vehicle_id=service.vehicle_id,
-            description=service.description,
-            status="DUE",
-            scheduled_date=None,
-        )
-
-        db.add(next_service)
-        db.flush()
-
-        db.add(
-            ServiceEvent(
-                service_id=next_service.id,
-                event_type="CREATED",
-                old_status=None,
-                new_status="DUE",
-                note="Next service cycle created after completion",
-                created_by=current_user.id,
-            )
-        )
 
     db.commit()
     db.refresh(service)
@@ -539,6 +649,69 @@ def unassign_technician(
     db.refresh(service)
 
     return service
+
+@router.post("/{service_id}/notes")
+def add_service_note(
+    service_id: int,
+    note_data: ServiceNote,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = (
+        db.query(ServiceRecord)
+        .filter(ServiceRecord.id == service_id)
+        .first()
+    )
+
+    if not service:
+        raise HTTPException(
+            status_code=404,
+            detail="Service record not found",
+        )
+
+    if current_user.role == "TECHNICIAN":
+        assignment = (
+            db.query(ServiceTechnician)
+            .filter(
+                ServiceTechnician.service_id == service_id,
+                ServiceTechnician.technician_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not assignment:
+            raise HTTPException(
+                status_code=403,
+                detail="You can add notes only to service records assigned to you",
+            )
+
+    if not note_data.note.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Note cannot be empty",
+        )
+
+    event = ServiceEvent(
+        service_id=service_id,
+        event_type="NOTE",
+        old_status=None,
+        new_status=None,
+        note=note_data.note.strip(),
+        created_by=current_user.id,
+    )
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+
+    return {
+        "id": event.id,
+        "service_id": event.service_id,
+        "event_type": event.event_type,
+        "note": event.note,
+        "created_by": event.created_by,
+        "created_at": event.created_at,
+    }
 
 @router.get(
     "/{service_id}/timeline",
