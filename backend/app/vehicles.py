@@ -204,3 +204,49 @@ def archive_vehicle(
     db.refresh(vehicle)
 
     return vehicle
+
+@router.post(
+    "/{vehicle_id}/unarchive",
+    response_model=VehicleResponse,
+)
+def unarchive_vehicle(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    vehicle = (
+        db.query(Vehicle)
+        .filter(Vehicle.id == vehicle_id)
+        .first()
+    )
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vehicle not found",
+        )
+
+    if not vehicle.is_archived:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vehicle is already active",
+        )
+
+    vehicle.is_archived = False
+
+    db.add(
+        AuditEvent(
+            user_id=current_user.id,
+            action="UNARCHIVE",
+            entity_type="VEHICLE",
+            entity_id=vehicle.id,
+            details=json.dumps({
+                "registration_number": vehicle.registration_number
+            }),
+        )
+    )
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle
