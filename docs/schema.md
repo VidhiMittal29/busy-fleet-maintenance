@@ -8,206 +8,216 @@ Answer each of these, in your own words.
 - What did you deliberately denormalise?
 - What would break first if this had 100x the data?
 
-### users
+# Schema
 
-This table stores everyone who can log in to the application. I kept managers
-and technicians in the same table because they are both users; their role
-determines what they are allowed to do.
+This document describes the database structure used by the application and where
+data-integrity and business rules are enforced.
 
-| Column | Type | Why it is needed |
+## users
+
+Stores all application users. Managers and technicians share the same table and
+are distinguished by their role.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each user |
-| name | VARCHAR | Name shown in the application |
-| email | VARCHAR | Used for login; should be unique |
-| password_hash | VARCHAR | Stores the hashed password instead of the actual password |
-| role | ENUM | Tells us whether the user is a manager or technician |
-| created_at | TIMESTAMP | Records when the user account was created |
+| id | INTEGER | Primary key |
+| email | VARCHAR | Login email |
+| password_hash | VARCHAR | Hashed password |
+| role | VARCHAR/ENUM | `MANAGER` or `TECHNICIAN` |
+| is_active | BOOLEAN | Whether the account can currently log in |
+| created_at | TIMESTAMP | Account creation time |
 
-### vehicles
+The email is used to identify the account during login.
 
-This table stores the vehicles in the fleet. I am also keeping the current
-odometer value and the last completed service details here because they are
-needed frequently when checking whether a vehicle is due for maintenance.
+## vehicles
 
-| Column | Type | Why it is needed |
+Stores fleet vehicles and their maintenance configuration.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each vehicle |
-| registration_number | VARCHAR | Vehicle registration number; should be unique |
+| id | INTEGER | Primary key |
+| registration_number | VARCHAR | Vehicle registration number |
 | make | VARCHAR | Vehicle manufacturer |
 | model | VARCHAR | Vehicle model |
 | current_odometer | INTEGER | Latest accepted odometer reading |
-| service_date_interval_days | INTEGER | Number of days after which the vehicle needs servicing |
-| service_mileage_interval | INTEGER | Number of kilometres after which the vehicle needs servicing |
+| service_date_interval_days | INTEGER | Number of days between services |
+| service_mileage_interval | INTEGER | Mileage interval between services |
 | last_service_date | DATE | Date of the most recently completed service |
-| last_service_odometer | INTEGER | Odometer reading when the last service was completed |
-| is_archived | BOOLEAN | Shows whether the vehicle is archived |
-| created_at | TIMESTAMP | When the vehicle was added |
-| updated_at | TIMESTAMP | When the vehicle was last updated |
+| last_service_odometer | INTEGER | Odometer at the most recently completed service |
+| service_due_since | TIMESTAMP | Tracks when the current maintenance cycle became due |
+| is_archived | BOOLEAN | Whether the vehicle is archived |
+| created_at | TIMESTAMP | Vehicle creation time |
+| updated_at | TIMESTAMP | Last update time |
 
-### service_records
+Current odometer and last-service values are kept on the vehicle because they are
+frequently required for due-status calculations.
 
-This table stores each maintenance job. A service belongs to one vehicle,
-and its status tells us where the job currently is in the service process.
+## service_records
 
-| Column | Type | Why it is needed |
+Stores maintenance jobs for vehicles.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each service record |
-| vehicle_id | UUID | Connects the service to the vehicle being serviced |
-| description | TEXT | Describes what needs to be done |
-| status | ENUM | Current status: Due, Booked, In Service or Completed |
-| scheduled_date | DATE | Date on which the service is planned |
-| created_by | UUID | Stores which user created the service record |
-| created_at | TIMESTAMP | When the service record was created |
-| updated_at | TIMESTAMP | When the service record was last changed |
+| id | INTEGER | Primary key |
+| vehicle_id | INTEGER | Vehicle being serviced |
+| description | TEXT | Description of the required work |
+| status | VARCHAR/ENUM | `DUE`, `BOOKED`, `IN_SERVICE`, or `COMPLETED` |
+| scheduled_date | DATE | Planned service date |
+| created_by | INTEGER | User who created the record |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last update time |
 
-### service_technicians
+Each service record belongs to exactly one vehicle.
 
-This table connects services with the technicians working on them. I used a
-separate table because one service can have multiple technicians and one
-technician can work on multiple services.
+## service_technicians
 
-| Column | Type | Why it is needed |
+Association table connecting technicians to service records.
+
+| Column | Type | Purpose |
 |---|---|---|
-| service_id | UUID | Identifies the service being worked on |
-| technician_id | UUID | Identifies the technician assigned to it |
-| assigned_by | UUID | Records who made the assignment |
-| assigned_at | TIMESTAMP | Records when the technician was assigned |
+| id | INTEGER | Primary key |
+| service_id | INTEGER | Service record being assigned |
+| technician_id | INTEGER | Assigned technician |
+| assigned_by | INTEGER | Manager who made the assignment |
+| assigned_at | TIMESTAMP | Assignment time |
 
-The combination of `service_id` and `technician_id` should be unique so that
-the same technician cannot be assigned to the same service twice.
+This creates a many-to-many relationship between services and technicians.
 
-### service_events
+A service can have multiple technicians and a technician can be assigned to multiple
+services.
 
-This table keeps a record of important actions that happen to a service.
-Instead of changing old events, I will add a new event whenever something
-important happens, so the service history can be traced over time.
+## odometer_readings
 
-| Column | Type | Why it is needed |
+Stores odometer history rather than keeping only the latest reading.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each event |
-| service_id | UUID | Identifies which service the event belongs to |
-| event_type | VARCHAR | Describes what happened, such as status change or technician assignment |
-| old_value | TEXT | Stores the previous value when something changes |
-| new_value | TEXT | Stores the new value when something changes |
-| note | TEXT | Additional information about the event |
-| actor_id | UUID | Identifies the user who performed the action |
-| created_at | TIMESTAMP | Records when the event happened |
+| id | INTEGER | Primary key |
+| vehicle_id | INTEGER | Vehicle associated with the reading |
+| reading | INTEGER | Odometer value |
+| recorded_at | TIMESTAMP | Time the reading was recorded |
+| recorded_by | INTEGER | User who submitted the reading |
+| source | VARCHAR | Source of the reading, such as manual or CSV |
 
-### odometer_readings
+Lower readings are rejected by the application so that an odometer value cannot
+move backwards.
 
-This table stores the odometer readings submitted for each vehicle. I am
-keeping the readings as history instead of only updating the current value
-on the vehicle, so we can track when and how the odometer changed.
+## service_events
 
-| Column | Type | Why it is needed |
+Stores the immutable service timeline.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each reading |
-| vehicle_id | UUID | Identifies which vehicle the reading belongs to |
-| reading | INTEGER | The odometer value that was submitted |
-| recorded_at | TIMESTAMP | When the reading was recorded |
-| recorded_by | UUID | Identifies the user who submitted the reading |
-| source | VARCHAR | Shows whether the reading came from manual entry or CSV upload |
+| id | INTEGER | Primary key |
+| service_id | INTEGER | Related service |
+| event_type | VARCHAR | Type of event |
+| old_value | TEXT | Previous value when applicable |
+| new_value | TEXT | New value when applicable |
+| note | TEXT | Optional event note |
+| actor_id | INTEGER | User who performed the action |
+| created_at | TIMESTAMP | Event time |
 
-### alert_dismissals
+Events are appended rather than edited or deleted so the service history remains
+traceable.
 
-This table stores when a manager dismisses an overdue alert. The dismissal
-is linked to a particular maintenance cycle instead of permanently marking
-the vehicle as dismissed.
+## audit_events
 
-| Column | Type | Why it is needed |
+Stores audit information for important application actions.
+
+| Column | Type | Purpose |
 |---|---|---|
-| id | UUID | Unique ID for each dismissal |
-| vehicle_id | UUID | Identifies the vehicle with the overdue alert |
-| service_cycle_key | VARCHAR | Identifies the maintenance cycle for which the alert was dismissed |
-| dismissed_by | UUID | Identifies the manager who dismissed the alert |
-| dismissed_at | TIMESTAMP | Records when the alert was dismissed |
+| id | INTEGER | Primary key |
+| actor_id | INTEGER | User responsible for the action |
+| action | VARCHAR | Action being recorded |
+| entity_type | VARCHAR | Type of affected entity |
+| entity_id | INTEGER | Identifier of the affected entity |
+| details | TEXT/JSON | Additional action details |
+| created_at | TIMESTAMP | Time of the action |
+
+## alert_dismissals
+
+Stores manager dismissals of overdue alerts.
+
+| Column | Type | Purpose |
+|---|---|---|
+| id | INTEGER | Primary key |
+| vehicle_id | INTEGER | Vehicle associated with the alert |
+| service_cycle_key | VARCHAR | Identifies the maintenance cycle |
+| dismissed_by | INTEGER | Manager who dismissed the alert |
+| dismissed_at | TIMESTAMP | Time of dismissal |
+
+The cycle key allows an alert to reappear for a later maintenance cycle.
 
 ## Relationships
 
-### One-to-many relationships
+### One-to-many
 
-- User → Service Records: One user can create multiple service records.
-- User → Service Events: One user can perform multiple actions, which are recorded as events.
-- User → Odometer Readings: One user can submit multiple odometer readings.
-- Vehicle → Service Records: One vehicle can have many different service records over time.
-- Vehicle → Odometer Readings: One vehicle can have multiple odometer readings over time.
-- Vehicle → Alert Dismissals: One vehicle can have dismissals for different maintenance cycles.
-- Service Record → Service Events: A single service can have multiple events during its lifecycle.
+- User → Service Records
+- User → Odometer Readings
+- User → Service Events
+- Vehicle → Service Records
+- Vehicle → Odometer Readings
+- Vehicle → Alert Dismissals
+- Service Record → Service Events
 
-### Many-to-many relationship
+### Many-to-many
 
-- Service Records ↔ Technicians: A single service can be assigned to multiple technicians, while one technician can be assigned to multiple services. The service_technicians table is used to connect the two.
+- Service Records ↔ Technicians
 
-## Constraints: Database vs Application
+The `service_technicians` table represents the many-to-many relationship.
 
-I am keeping basic data integrity rules in the database and business rules
-in the application code. The database should act as the final safeguard
-against invalid data, while the application handles rules that depend on
-the user's role or the current business workflow.
+## Database constraints vs application rules
 
-### Database constraints
+The database is responsible for basic relational integrity and data storage
+constraints such as primary keys, foreign keys, required fields and uniqueness
+constraints where defined.
 
-- User email must be unique.
-- Vehicle registration number must be unique.
-- Required fields should not be NULL.
-- Foreign keys should make sure that referenced users, vehicles and services exist.
-- The combination of service_id and technician_id should be unique so that
-  the same technician cannot be assigned to the same service twice.
-- Stored role and status values should only contain allowed values.
+Application code is responsible for rules that depend on the current user or
+business state.
 
-I chose the database for these rules because they should remain true no
-matter where the data is coming from.
+Examples include:
 
-### Application constraints
-
-- Only managers can archive or restore vehicles.
-- Only managers can create, edit or delete service records.
+- Only managers can create/archive/restore vehicles.
+- Only managers can create services and manage technician assignments.
 - Technicians can only access services assigned to them.
-- Service status changes must follow the allowed order:
-  Due → Booked → In Service → Completed.
+- Service transitions must follow:
+
+  `DUE → BOOKED → IN_SERVICE → COMPLETED`
+
 - Archived vehicles cannot be used for new services.
+- Odometer readings cannot decrease.
 - Only managers can dismiss overdue alerts.
-- Odometer CSV rows are validated individually so that valid rows can still
-  be processed when other rows fail.
+- CSV rows are validated individually so valid rows can still be processed when
+  another row is rejected.
 
-I put these rules in the application because they depend on the current
-user, the current state of the system, or the business workflow.
+These rules belong in application code because they depend on the authenticated
+user and current state rather than being simple static database constraints.
 
-Important operations that update multiple pieces of data will be performed
-inside database transactions so that either all related changes succeed or
-none of them are saved.
+## Deliberate denormalisation
 
-## Deliberate Denormalisation
+The `vehicles` table stores:
 
-I am keeping current_odometer, last_service_date and last_service_odometer
-on the vehicles table even though some of these values can be obtained from
-the historical records.
+- `current_odometer`
+- `last_service_date`
+- `last_service_odometer`
+- `service_due_since`
 
-These values are used frequently when checking maintenance due status and
-displaying vehicle information. Keeping the latest values directly on the
-vehicle avoids repeatedly looking through the historical records.
+Some of these values could be derived from historical records, but storing the
+current values directly makes due calculations and common vehicle queries faster
+and simpler.
 
-The historical odometer readings and service records are still kept, so the
-denormalisation is only for frequently accessed current values and does not
-remove the history.
+The historical service and odometer records are still retained.
 
-## What Would Break First at 100x the Data?
+## What would break first at 100x the data?
 
-The services page and dashboard queries would probably be the first areas
-where performance becomes an issue. They involve searching, filtering,
-sorting, pagination and joins between several tables.
+The first likely bottlenecks would be service-list and dashboard queries because
+they involve filtering, sorting, pagination and joins across multiple tables.
 
-I would handle this by adding indexes to the columns that are frequently
-searched or filtered and by keeping pagination, filtering and sorting on
-the server.
+The append-only `service_events` table would also grow quickly.
 
-The frontend should only receive the records needed for the current page
-instead of loading the complete service history.
+At larger scale, I would add targeted indexes to frequently filtered/sorted
+columns, profile the dashboard and service queries, and consider partitioning or
+archiving older event data if measurement showed it was necessary.
 
-The service_events table would also grow quickly because it is append-only.
-If the system became much larger, I would consider archiving or partitioning
-old events after checking where the actual performance bottleneck is.
-
-I would not add these optimisations prematurely because the assignment has a
-small initial dataset and unnecessary complexity would make the application
-harder to maintain.
+Pagination, filtering and sorting would remain server-side so the frontend would
+not need to load the entire history.
