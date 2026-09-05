@@ -24,7 +24,8 @@ import {
 } from "recharts";
 
 const API =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
 
 const api = axios.create({
   baseURL: API,
@@ -572,6 +573,7 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [odometerInput, setOdometerInput] = useState(null);
 
   async function archiveVehicle(vehicleId) {
     try {
@@ -642,8 +644,7 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
       );
     }
   }
-  async function importOdometerCsv(e) {
-    const file = e.target.files[0];
+  async function importOdometerCsv(file) {
     if (!file) return;
 
     const formData = new FormData();
@@ -656,21 +657,18 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
           },
         }
       );
 
       await refresh(showArchived);
 
-      const results = response.data.results || response.data;
-      const items = Array.isArray(results) ? results : [];
-
-      const successCount = items.filter(
-        (item) => item.success === true || item.status === "success"
+      const results = response.data.results || [];
+      const successCount = results.filter(
+        (item) => item.status === "success"
       ).length;
 
-      const rejectedCount = items.length - successCount;
+      const rejectedCount = results.length - successCount;
 
       alert(
         `CSV processed successfully.\n\nSuccessful: ${successCount}\nRejected: ${rejectedCount}`
@@ -680,9 +678,9 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
         err.response?.data?.detail ||
         "Unable to import odometer CSV"
       );
+    } finally {
+      setOdometerInput(null);
     }
-
-    e.target.value = "";
   }
 
   return (
@@ -701,9 +699,17 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
             + Add Vehicle
           </button>
 
+          <input
+            ref={(input) => setOdometerInput(input)}
+            type="file"
+            accept=".csv"
+            style={{ display: "none" }}
+            onChange={(e) => importOdometerCsv(e.target.files[0])}
+          />
+
           <button
             className="secondary-btn"
-            onClick={importOdometerCsv}
+            onClick={() => odometerInput?.click()}
           >
             Import Odometer CSV
           </button>
