@@ -10,7 +10,11 @@ from app.alerts import router as alerts_router
 app = FastAPI(title="Fleet Maintenance API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://busy-fleet-maintenance.vercel.app",
+        "https://busy-fleet-maintenance-a9l4gjsx1-busy-fleet.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
