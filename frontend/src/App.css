@@ -11,6 +11,7 @@
   &:hover {
     border-color: var(--accent-border);
   }
+
   &:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -42,8 +43,7 @@
     z-index: 1;
     top: 34px;
     height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg) scale(1.4);
   }
 
   .vite {
@@ -51,8 +51,7 @@
     top: 107px;
     height: 26px;
     width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg) scale(0.8);
   }
 }
 
@@ -75,9 +74,10 @@
   border-top: 1px solid var(--border);
   text-align: left;
 
-  & > div {
+  &>div {
     flex: 1 1 0;
     padding: 32px;
+
     @media (max-width: 1024px) {
       padding: 24px 20px;
     }
@@ -130,6 +130,7 @@
     &:hover {
       box-shadow: var(--shadow);
     }
+
     .button-icon {
       height: 18px;
       width: 18px;
@@ -156,6 +157,7 @@
 #spacer {
   height: 88px;
   border-top: 1px solid var(--border);
+
   @media (max-width: 1024px) {
     height: 48px;
   }
@@ -177,8 +179,124 @@
     left: 0;
     border-left-color: var(--border);
   }
+
   &::after {
     right: 0;
     border-right-color: var(--border);
+  }
+}
+
+.modal {
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+
+  width: 38px;
+  height: 38px;
+
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+
+  transition: 0.15s ease;
+}
+
+.modal-close:hover {
+  background: #eef2f7;
+  border-color: #cbd5e1;
+  color: #172033;
+}
+
+/* Service note form */
+
+.note-box {
+  padding: 20px 0 22px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.note-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #172033;
+}
+
+.note-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.note-input-row textarea {
+  flex: 1;
+  min-height: 78px;
+  resize: vertical;
+
+  padding: 12px 13px;
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  line-height: 1.5;
+
+  outline: none;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.note-input-row textarea::placeholder {
+  color: #9aa3b2;
+}
+
+.note-input-row textarea:focus {
+  border-color: #b8c8eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.note-btn {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.note-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.note-help {
+  display: block;
+  margin-top: 8px;
+  color: #8a93a3;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .note-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-btn {
+    width: 100%;
+    justify-content: center;
   }
 }

@@ -76,12 +76,28 @@ def sync_due_service_records(
             .first()
         )
 
-        if existing_due:
-            if vehicle.service_due_since is None:
-                vehicle.service_due_since = date.today()
-            continue
+        # Work out when the vehicle became due.
+        due_since = vehicle.service_due_since
 
-        vehicle.service_due_since = date.today()
+        if due_since is None and vehicle.last_service_date is not None:
+            date_due_on = (
+                vehicle.last_service_date
+                + timedelta(days=vehicle.service_date_interval_days)
+            )
+
+            if date.today() >= date_due_on:
+                due_since = date_due_on
+
+        # If mileage is what caused the vehicle to become due and
+        # we do not have a historical due date, use today as the
+        # detection date.
+        if due_since is None:
+            due_since = date.today()
+
+        vehicle.service_due_since = due_since
+
+        if existing_due:
+            continue
 
         service = ServiceRecord(
             vehicle_id=vehicle.id,

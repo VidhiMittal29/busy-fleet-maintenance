@@ -721,3 +721,508 @@ td {
   color: #fff;
   border-color: #2563eb;
 }
+
+
+:root {
+  --page-bg: #f5f7fb;
+  --panel-bg: #ffffff;
+  --border-soft: #e6eaf0;
+  --border-hover: #d4dae4;
+  --text-main: #172033;
+  --text-muted: #6b7485;
+  --text-soft: #8a93a3;
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+}
+
+/* Page spacing */
+.main-content {
+  padding: 36px 42px;
+}
+
+.page-header {
+  gap: 18px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  font-size: 29px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
+/* Make header action areas behave nicely when there are several buttons */
+.page-header>div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Panels */
+.panel,
+.metric-card {
+  border-color: var(--border-soft);
+  box-shadow: 0 6px 24px rgba(28, 39, 60, 0.045);
+}
+
+.panel {
+  padding: 24px;
+}
+
+/* Dashboard cards */
+.metric-grid {
+  gap: 16px;
+}
+
+.metric-card {
+  padding: 20px 22px;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(28, 39, 60, 0.07);
+}
+
+.metric-card strong {
+  margin-top: 8px;
+  font-size: 32px;
+}
+
+/* Buttons */
+.primary-btn,
+.secondary-btn,
+.pagination button,
+.vehicle-tab,
+.icon-btn,
+.logout-btn {
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.primary-btn {
+  background: var(--blue);
+  box-shadow: 0 2px 7px rgba(37, 99, 235, 0.18);
+}
+
+.primary-btn:hover {
+  background: var(--blue-dark);
+  transform: translateY(-1px);
+}
+
+.secondary-btn {
+  border: 1px solid transparent;
+}
+
+.secondary-btn:hover {
+  background: #e6ebf2;
+}
+
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible,
+.pagination button:focus-visible,
+.vehicle-tab:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+/* Filters */
+.filters-panel {
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.search-box {
+  min-height: 42px;
+}
+
+.search-box:focus-within {
+  border-color: #b8c8eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.filters-panel select {
+  min-height: 42px;
+  min-width: 145px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.filters-panel select:focus {
+  outline: none;
+  border-color: #b8c8eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* Tables */
+.table-panel {
+  border-radius: 14px;
+}
+
+th {
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+
+td {
+  padding: 15px 18px;
+  vertical-align: middle;
+}
+
+tbody tr {
+  transition: background 0.12s ease;
+}
+
+.clickable-row:hover {
+  background: #f8fafc;
+}
+
+/* Keep action buttons from looking glued together */
+td:last-child {
+  min-width: 190px;
+  white-space: normal;
+}
+
+td:last-child .primary-btn,
+td:last-child .secondary-btn {
+  margin: 2px 4px 2px 0;
+}
+
+/* Status pills */
+.status-pill {
+  min-height: 24px;
+  padding: 4px 10px;
+}
+
+/* Vehicle tabs */
+.vehicle-tabs {
+  gap: 10px;
+  margin: 0 0 20px;
+  padding-bottom: 2px;
+}
+
+.vehicle-tab {
+  font-weight: 600;
+  border-color: #d9e0e8;
+}
+
+.vehicle-tab:hover:not(.active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Forms */
+.form-panel {
+  border-radius: 14px;
+}
+
+.vehicle-form {
+  gap: 14px;
+}
+
+.vehicle-form input {
+  min-height: 42px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.vehicle-form input:focus {
+  border-color: #b8c8eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* Alerts */
+.alert-card {
+  padding: 18px 4px;
+}
+
+.alert-card .secondary-btn {
+  flex-shrink: 0;
+}
+
+.alert-card:hover {
+  background: #fafbfc;
+}
+
+/* Empty states */
+.empty-state {
+  padding: 64px 20px;
+  color: var(--text-soft);
+}
+
+/* Pagination */
+.pagination {
+  padding: 14px 18px;
+  gap: 14px;
+}
+
+.pagination button {
+  border: 1px solid #e0e5eb;
+  color: #334155;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #e4e9f0;
+}
+
+/* Service detail / history */
+.service-detail {
+  gap: 24px;
+}
+
+.history-item,
+.timeline-item {
+  padding: 16px 0;
+}
+
+/* Modal */
+.modal {
+  padding: 26px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.16);
+}
+
+/* Login */
+.login-box {
+  border: 1px solid var(--border-soft);
+}
+
+.login-box input:focus {
+  border-color: #b8c8eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/* Sidebar refinement */
+.sidebar {
+  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.08);
+}
+
+.nav-btn {
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.nav-btn:hover {
+  transform: translateX(1px);
+}
+
+/* Better mobile wrapping */
+@media (max-width: 900px) {
+  .main-content {
+    padding: 28px 24px;
+  }
+
+  .page-header>div:last-child {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-content {
+    padding: 20px 16px;
+  }
+
+  .page-header h1 {
+    font-size: 25px;
+  }
+
+  .page-header>div:last-child {
+    width: 100%;
+  }
+
+  .page-header>div:last-child>* {
+    flex: 1 1 auto;
+  }
+
+  .filters-panel {
+    padding: 12px;
+  }
+
+  .filters-panel select,
+  .filters-panel button {
+    width: 100%;
+  }
+
+  td,
+  th {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ===== Fleet App Modal ===== */
+
+.modal {
+  position: relative;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+
+  margin: -24px -24px 20px;
+  padding: 24px 70px 18px 24px;
+
+  background: #ffffff;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.modal-header>div:first-child {
+  min-width: 0;
+}
+
+.modal-close,
+.modal-header .icon-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+
+  width: 38px;
+  height: 38px;
+
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover,
+.modal-header .icon-btn:hover {
+  background: #eef2f7;
+  border-color: #cbd5e1;
+  color: #172033;
+}
+
+/* Service notes */
+.note-box {
+  margin-top: 24px;
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.note-box strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: #1e293b;
+}
+
+.note-box textarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.note-box textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.note-box .primary-btn {
+  display: block;
+  margin-top: 10px;
+  width: auto;
+  min-width: 105px;
+}
+
+.note-box>div:last-child {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.page-actions button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.page-actions .primary-btn,
+.page-actions .secondary-btn {
+  min-height: 40px;
+  padding: 10px 16px;
+}
+
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions {
+    justify-content: flex-start;
+  }
+}
+
+.chart-panel {
+  padding: 22px;
+}
+
+.chart-panel .panel-header {
+  margin-bottom: 8px;
+}

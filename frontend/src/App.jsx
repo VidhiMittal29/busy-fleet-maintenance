@@ -23,7 +23,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API = "http://127.0.0.1:8000";
+const API =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const api = axios.create({
   baseURL: API,
@@ -47,6 +48,8 @@ function App() {
   const [search, setSearch] = useState("");
   const [serviceStatus, setServiceStatus] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState("");
+  const [technicianFilter, setTechnicianFilter] = useState("");
+  const [serviceSort, setServiceSort] = useState("updated_at");
   const [servicePage, setServicePage] = useState(1);
   const [selectedService, setSelectedService] = useState(null);
   const [serviceTimeline, setServiceTimeline] = useState([]);
@@ -111,12 +114,13 @@ function App() {
     const params = {
       page: servicePage,
       page_size: 10,
-      sort_by: "updated_at",
+      sort_by: serviceSort,
     };
 
     if (search) params.search = search;
     if (serviceStatus) params.service_status = serviceStatus;
     if (vehicleFilter) params.vehicle_id = vehicleFilter;
+    if (technicianFilter) params.technician_id = technicianFilter;
 
     const response = await api.get("/services", {
       params,
@@ -331,6 +335,11 @@ function App() {
             setStatus={setServiceStatus}
             vehicleFilter={vehicleFilter}
             setVehicleFilter={setVehicleFilter}
+            technicianFilter={technicianFilter}
+            setTechnicianFilter={setTechnicianFilter}
+            technicians={dashboard?.technician_breakdown || []}
+            serviceSort={serviceSort}
+            setServiceSort={setServiceSort}
             vehicles={vehicles}
             reload={loadServices}
             token={token}
@@ -521,13 +530,13 @@ function Dashboard({ dashboard, refresh, loading }) {
           </div>
         </div>
 
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={250}>
           <BarChart data={dashboard.eight_week_completion}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="week_start" />
             <YAxis allowDecimals={false} />
             <Tooltip />
-            <Bar dataKey="completed" name="Completed" />
+            <Bar dataKey="completed" fill="#2563eb" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -684,28 +693,28 @@ function Vehicles({ vehicles, token, user, refresh, onHistory }) {
           <p>Manage the fleet and maintenance intervals</p>
         </div>
 
-        <button
-          className="primary-button"
-          onClick={() => setShowForm(true)}
-        >
-          <Plus size={16} />
-          Add Vehicle
-        </button>
-        <label className="secondary-btn" style={{ cursor: "pointer" }}>
-          Import Odometer CSV
-          <input
-            type="file"
-            accept=".csv"
-            onChange={importOdometerCsv}
-            style={{ display: "none" }}
-          />
-        </label>
-        <button
-          className="secondary-btn"
-          onClick={exportServiceHistory}
-        >
-          Export Service History
-        </button>
+        <div className="page-actions">
+          <button
+            className="primary-btn"
+            onClick={() => setShowForm(true)}
+          >
+            + Add Vehicle
+          </button>
+
+          <button
+            className="secondary-btn"
+            onClick={importOdometerCsv}
+          >
+            Import Odometer CSV
+          </button>
+
+          <button
+            className="secondary-btn"
+            onClick={exportServiceHistory}
+          >
+            Export Service History
+          </button>
+        </div>
       </div>
 
       <div className="vehicle-tabs">
@@ -989,6 +998,11 @@ function Services({
   setStatus,
   vehicleFilter,
   setVehicleFilter,
+  technicianFilter,
+  setTechnicianFilter,
+  technicians,
+  serviceSort,
+  setServiceSort,
   vehicles,
   reload,
   token,
@@ -1067,7 +1081,7 @@ function Services({
 
         {user?.role === "MANAGER" && (
           <button
-            className="primary-button"
+            className="primary-btn"
             onClick={() => setShowCreateForm(true)}
           >
             + Add Service
@@ -1107,6 +1121,7 @@ function Services({
             setTimeout(reload, 0);
           }}
         >
+
           <option value="">All vehicles</option>
           {vehicles.map((vehicle) => (
             <option key={vehicle.id} value={vehicle.id}>
@@ -1114,6 +1129,19 @@ function Services({
             </option>
           ))}
         </select>
+        {user?.role === "MANAGER" && (
+          <select
+            value={technicianFilter}
+            onChange={(e) => setTechnicianFilter(e.target.value)}
+          >
+            <option value="">All technicians</option>
+            {technicians.map((tech) => (
+              <option key={tech.technician_id} value={tech.technician_id}>
+                {tech.technician_email}
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           value={status}
@@ -1128,6 +1156,15 @@ function Services({
           <option value="BOOKED">Booked</option>
           <option value="IN_SERVICE">In Service</option>
           <option value="COMPLETED">Completed</option>
+        </select>
+
+        <select
+          value={serviceSort}
+          onChange={(e) => setServiceSort(e.target.value)}
+        >
+          <option value="updated_at">Last updated</option>
+          <option value="scheduled_date">Scheduled date</option>
+          <option value="status">Status</option>
         </select>
 
         <button className="secondary-btn" onClick={searchServices}>
@@ -1472,7 +1509,7 @@ function ServiceForm({ token, vehicles, onCreated, onCancel }) {
         {error && <div className="form-error">{error}</div>}
 
         <div style={{ display: "flex", gap: "8px" }}>
-          <button className="primary-button" type="submit">
+          <button className="primary-btn" type="submit">
             Create Service
           </button>
 
@@ -1490,15 +1527,30 @@ function ServiceForm({ token, vehicles, onCreated, onCancel }) {
 }
 
 function Alerts({ alerts, dismiss, refresh }) {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
         title="Overdue Alerts"
         subtitle={`${alerts.length} active alerts`}
         action={
-          <button className="secondary-btn" onClick={refresh}>
+          <button
+            className="secondary-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
             <RefreshCw size={16} />
-            Refresh
+            {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         }
       />
@@ -1546,35 +1598,45 @@ function HistoryModal({ vehicle, history, onClose }) {
             </p>
           </div>
 
-          <button className="icon-btn" onClick={onClose}>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            title="Close service history"
+            aria-label="Close service history"
+          >
             ×
           </button>
         </div>
 
-        <div className="history-list">
-          {history.map((service) => (
-            <div className="history-item" key={service.id}>
-              <div className="history-top">
-                <strong>#{service.id}</strong>
-                <span className={`status-pill ${service.status.toLowerCase()}`}>
-                  {service.status.replace("_", " ")}
-                </span>
+        <div className="modal-body">
+          <div className="history-list">
+            {history.map((service) => (
+              <div className="history-item" key={service.id}>
+                <div className="history-top">
+                  <strong>#{service.id}</strong>
+
+                  <span
+                    className={`status-pill ${service.status.toLowerCase()}`}
+                  >
+                    {service.status.replace("_", " ")}
+                  </span>
+                </div>
+
+                <p>{service.description}</p>
+
+                <small>
+                  Created{" "}
+                  {new Date(service.created_at).toLocaleString()}
+                </small>
               </div>
+            ))}
 
-              <p>{service.description}</p>
-
-              <small>
-                Created{" "}
-                {new Date(service.created_at).toLocaleString()}
-              </small>
-            </div>
-          ))}
-
-          {history.length === 0 && (
-            <div className="empty-state">
-              No service history available.
-            </div>
-          )}
+            {history.length === 0 && (
+              <div className="empty-state">
+                No service history available.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1758,11 +1820,15 @@ function ServiceModal({
             <p>Vehicle #{service.vehicle_id}</p>
           </div>
 
-          <button className="icon-btn" onClick={onClose}>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            title="Close service details"
+            aria-label="Close service details"
+          >
             ×
           </button>
         </div>
-
         <div className="service-detail">
           <div>
             <strong>Description</strong>
@@ -1787,26 +1853,30 @@ function ServiceModal({
         </div>
 
         <div className="note-box">
-          <strong>Add Note</strong>
+          <strong>Add a service note</strong>
 
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Write a service note..."
-            rows={3}
+            placeholder="Write a note about this service..."
+            rows={4}
           />
 
           <button
             className="primary-btn"
             onClick={addNote}
-            disabled={savingNote}
+            disabled={savingNote || !note.trim()}
           >
             {savingNote ? "Saving..." : "Add Note"}
           </button>
 
           {noteError && (
-            <div className="login-error">
-              {noteError}
+            <div className="login-error">{noteError}</div>
+          )}
+
+          {!noteError && (
+            <div className="note-helper">
+              Notes are added to the permanent service timeline.
             </div>
           )}
         </div>

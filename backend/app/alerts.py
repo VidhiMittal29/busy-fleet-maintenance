@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_manager
 from app.database import get_db
 from app.models import AlertDismissal, User, Vehicle
+from app.services import sync_due_service_records
 
 router = APIRouter(
     prefix="/alerts",
@@ -21,6 +22,7 @@ def get_alerts(
     current_user: User = Depends(require_manager),
 ):
     today = date.today()
+    sync_due_service_records(db, current_user)
 
     vehicles = (
         db.query(Vehicle)
