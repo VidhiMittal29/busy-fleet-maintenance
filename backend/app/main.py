@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from app.services import router as services_router
 from app.auth import router as auth_router
@@ -7,6 +8,13 @@ from app.alerts import router as alerts_router
 
 
 app = FastAPI(title="Fleet Maintenance API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(vehicles_router)

@@ -120,6 +120,7 @@ def get_due_services(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    sync_due_service_records(db, current_user)
     vehicles = (
         db.query(Vehicle)
         .filter(Vehicle.is_archived == False)
@@ -134,8 +135,6 @@ def get_due_services(
         if not due:
             continue
 
-        if vehicle.service_due_since is None:
-            vehicle.service_due_since = date.today()
 
         overdue = vehicle_overdue(vehicle)
 
